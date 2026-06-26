@@ -19,7 +19,12 @@
       "Bash(curl -s \"https://vip.stock.finance.sina.com.cn/quotes_service/api/json_v2.php/ Market_Center.getHQNodeData?page=1&num=3&sort=changepercent&asc=0&node=hs_a&symbol=&_s_r_a=init\")",
       "Bash(python -c \"import akshare; import os; print\\(os.path.dirname\\(akshare.__file__\\)\\)\")",
       "Bash(cat \"$\\(python -c \"import akshare; import os; print\\(os.path.dirname\\(akshare.__file__\\)\\)\"\\)/stock_feature/stock_zh_a_spot.py\")",
-      "Bash(curl -s http://localhost:8080/api/v1/health)"
+      "Bash(curl -s http://localhost:8080/api/v1/health)",
+      "Bash(git remote *)",
+      "Bash(git push *)",
+      "Bash(npm list *)",
+      "Bash(npm install *)",
+      "Bash(pip download *)"
     ]
   }
 }
