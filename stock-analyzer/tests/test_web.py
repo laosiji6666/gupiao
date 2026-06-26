@@ -73,7 +73,7 @@ def seed_test_data(session):
 
 def test_rankings_today(client, session):
     seed_test_data(session)
-    resp = client.get("/api/v1/rankings/today")
+    resp = client.get("/api/v1/rankings/today?date=2026-06-26")
     assert resp.status_code == 200
     data = resp.json()
     assert data["date"] == "2026-06-26"

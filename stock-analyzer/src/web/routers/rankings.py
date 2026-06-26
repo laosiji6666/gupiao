@@ -33,9 +33,13 @@ def _build_ranking(session: Session, target_date: date) -> dict:
 
 
 @router.get("/today")
-def today_ranking(session: Session = Depends(get_db)):
-    """获取今日选股排行榜"""
-    return _build_ranking(session, date.today())
+def today_ranking(
+    date_str: str = Query(default=None, alias="date"),
+    session: Session = Depends(get_db),
+):
+    """获取选股排行榜，默认今日"""
+    target_date = date.fromisoformat(date_str) if date_str else date.today()
+    return _build_ranking(session, target_date)
 
 
 @router.get("/history")
