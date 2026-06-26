@@ -1,37 +1,35 @@
 import numpy as np
 import pandas as pd
-from typing import Optional
+import talib
 from sqlalchemy.orm import Session
 from src.models import DailyQuote, Fundamental
 
 
-def calculate_technical(
-    df: pd.DataFrame, config: dict
-) -> dict:
-    """
-    计算技术面指标信号。
-
-    df: 包含某只股票日线行情（按日期升序）的 DataFrame
-    返回: 各指标信号和综合技术评分(0-100)
-    """
+def calculate_technical(df: pd.DataFrame, config: dict) -> dict:
     signals = {}
-    total_score = 50.0  # 基准分
+    total_score = 50.0
 
-    indicators = config.get("indicators", {})
+    # Read from config["analyzer"]["indicators"]
+    analyzer_cfg = config.get("analyzer", config)  # support both structures
+    indicators = analyzer_cfg.get("indicators", {})
 
-    # 均线系统
-    if indicators.get("ma", {}).get("enabled", True):
-        windows = indicators["ma"].get("windows", [5, 10, 20, 60])
+    close = df["close"].values.astype(float)
+    high = df["high"].values.astype(float)
+    low = df["low"].values.astype(float)
+
+    # MA
+    ma_cfg = indicators.get("ma", {})
+    if ma_cfg.get("enabled", True):
+        windows = ma_cfg.get("windows", [5, 10, 20, 60])
+        ma_values = []
         for w in windows:
-            col = f"ma{w}"
-            df[col] = df["close"].rolling(window=w).mean()
+            ma = talib.SMA(close, timeperiod=w)
+            ma_values.append(ma[-1] if not np.isnan(ma[-1]) else None)
 
-        latest = df.iloc[-1]
-        # 多头排列判断: MA5 > MA10 > MA20 > MA60
-        ma_values = [latest.get(f"ma{w}") for w in windows]
-        if all(ma_values):
-            is_bullish = all(ma_values[i] > ma_values[i + 1] for i in range(len(ma_values) - 1))
-            is_bearish = all(ma_values[i] < ma_values[i + 1] for i in range(len(ma_values) - 1))
+        valid = [v for v in ma_values if v is not None]
+        if len(valid) == len(windows):
+            is_bullish = all(valid[i] > valid[i+1] for i in range(len(valid)-1))
+            is_bearish = all(valid[i] < valid[i+1] for i in range(len(valid)-1))
             if is_bullish:
                 signals["ma"] = "bullish"
                 total_score += 15
@@ -40,87 +38,85 @@ def calculate_technical(
                 total_score -= 15
             else:
                 signals["ma"] = "neutral"
+        else:
+            signals["ma"] = "neutral"
 
-    # MACD
-    if indicators.get("macd", {}).get("enabled", True):
-        fast = indicators["macd"].get("fast", 12)
-        slow = indicators["macd"].get("slow", 26)
-        signal = indicators["macd"].get("signal", 9)
-
-        exp12 = df["close"].ewm(span=fast, adjust=False).mean()
-        exp26 = df["close"].ewm(span=slow, adjust=False).mean()
-        macd_line = exp12 - exp26
-        signal_line = macd_line.ewm(span=signal, adjust=False).mean()
-        histogram = macd_line - signal_line
-
-        if len(histogram) >= 2:
-            # 金叉: MACD 上穿信号线
-            if histogram.iloc[-2] < 0 and histogram.iloc[-1] >= 0:
+    # MACD - using signal-line crossover (not histogram zero-crossing)
+    macd_cfg = indicators.get("macd", {})
+    if macd_cfg.get("enabled", True):
+        macd_line, signal_line, hist = talib.MACD(
+            close,
+            fastperiod=macd_cfg.get("fast", 12),
+            slowperiod=macd_cfg.get("slow", 26),
+            signalperiod=macd_cfg.get("signal", 9),
+        )
+        if len(macd_line) >= 2 and not np.isnan(macd_line[-1]) and not np.isnan(macd_line[-2]):
+            # Golden cross: MACD line crosses ABOVE signal line
+            prev_diff = macd_line[-2] - signal_line[-2]
+            curr_diff = macd_line[-1] - signal_line[-1]
+            if prev_diff < 0 and curr_diff >= 0:
                 signals["macd"] = "golden_cross"
                 total_score += 15
-            elif histogram.iloc[-2] > 0 and histogram.iloc[-1] <= 0:
+            elif prev_diff > 0 and curr_diff <= 0:
                 signals["macd"] = "dead_cross"
                 total_score -= 15
             else:
                 signals["macd"] = "neutral"
+        else:
+            signals["macd"] = "neutral"
 
     # RSI
-    if indicators.get("rsi", {}).get("enabled", True):
-        period = indicators["rsi"].get("period", 14)
-        overbought = indicators["rsi"].get("overbought", 70)
-        oversold = indicators["rsi"].get("oversold", 30)
-
-        delta = df["close"].diff()
-        gain = delta.where(delta > 0, 0.0)
-        loss = (-delta.where(delta < 0, 0.0))
-        avg_gain = gain.rolling(window=period).mean()
-        avg_loss = loss.rolling(window=period).mean()
-        rs = avg_gain / avg_loss.replace(0, np.nan)
-        rsi = 100 - (100 / (1 + rs))
-
-        latest_rsi = rsi.iloc[-1]
-        if latest_rsi > overbought:
-            signals["rsi"] = "overbought"
-            total_score -= 10
-        elif latest_rsi < oversold:
-            signals["rsi"] = "oversold"
-            total_score += 10
+    rsi_cfg = indicators.get("rsi", {})
+    if rsi_cfg.get("enabled", True):
+        rsi = talib.RSI(close, timeperiod=rsi_cfg.get("period", 14))
+        latest_rsi = rsi[-1]
+        if not np.isnan(latest_rsi):
+            overbought = rsi_cfg.get("overbought", 70)
+            oversold = rsi_cfg.get("oversold", 30)
+            if latest_rsi > overbought:
+                signals["rsi"] = "overbought"
+                total_score -= 10
+            elif latest_rsi < oversold:
+                signals["rsi"] = "oversold"
+                total_score += 10
+            else:
+                signals["rsi"] = "normal"
         else:
-            signals["rsi"] = "normal"
+            signals["rsi"] = "neutral"
 
-    # KDJ
-    if indicators.get("kdj", {}).get("enabled", True):
-        low_n = df["low"].rolling(window=9).min()
-        high_n = df["high"].rolling(window=9).max()
-        rsv = (df["close"] - low_n) / (high_n - low_n).replace(0, np.nan) * 100
-        k = rsv.ewm(com=2, adjust=False).mean()
-        d = k.ewm(com=2, adjust=False).mean()
-        j = 3 * k - 2 * d
-
-        if len(k) >= 2:
-            if k.iloc[-2] < d.iloc[-2] and k.iloc[-1] > d.iloc[-1]:
+    # KDJ (Stochastic)
+    kdj_cfg = indicators.get("kdj", {})
+    if kdj_cfg.get("enabled", True):
+        slowk, slowd = talib.STOCH(
+            high, low, close,
+            fastk_period=9,
+            slowk_period=3,
+            slowk_matype=0,
+            slowd_period=3,
+            slowd_matype=0,
+        )
+        if len(slowk) >= 2 and not np.isnan(slowk[-1]) and not np.isnan(slowk[-2]):
+            if slowk[-2] < slowd[-2] and slowk[-1] > slowd[-1]:
                 signals["kdj"] = "golden_cross"
                 total_score += 10
-            elif k.iloc[-2] > d.iloc[-2] and k.iloc[-1] < d.iloc[-1]:
+            elif slowk[-2] > slowd[-2] and slowk[-1] < slowd[-1]:
                 signals["kdj"] = "dead_cross"
                 total_score -= 10
             else:
                 signals["kdj"] = "neutral"
+        else:
+            signals["kdj"] = "neutral"
 
-    # 钳制分数到 0-100
     total_score = max(0, min(100, total_score))
-
-    return {
-        "signals": signals,
-        "score": round(total_score, 2),
-    }
+    return {"signals": signals, "score": round(total_score, 2)}
 
 
 def calculate_fundamental(
     fundamental: Fundamental, config: dict
 ) -> dict:
     """计算基本面评分"""
-    f_cfg = config.get("fundamental", {})
+    analyzer_cfg = config.get("analyzer", config)
+    f_cfg = analyzer_cfg.get("fundamental", {})
     pe_max = f_cfg.get("pe_max", 50)
     pb_max = f_cfg.get("pb_max", 10)
     roe_min = f_cfg.get("roe_min", 15)
@@ -147,8 +143,9 @@ def calculate_score(
     technical: dict, fundamental: dict, config: dict
 ) -> float:
     """综合评分 (0-100)"""
-    tw = config.get("technical_weight", 0.5)
-    fw = config.get("fundamental_weight", 0.5)
+    analyzer_cfg = config.get("analyzer", config)
+    tw = analyzer_cfg.get("technical_weight", 0.5)
+    fw = analyzer_cfg.get("fundamental_weight", 0.5)
 
     tech_norm = technical["score"] / 100.0
     fund_norm = fundamental["total"] / fundamental["max"] if fundamental["max"] > 0 else 0
