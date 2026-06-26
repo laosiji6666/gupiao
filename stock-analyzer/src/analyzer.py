@@ -176,7 +176,7 @@ def run_analysis(session: Session, config: dict, logger=None) -> list:
             .order_by(DailyQuote.date)
             .all()
         )
-        if len(quotes) < 20:  # 至少 20 个交易日才有意义
+        if len(quotes) < 1:  # 至少有 1 天数据即可分析
             continue
 
         df = pd.DataFrame(
