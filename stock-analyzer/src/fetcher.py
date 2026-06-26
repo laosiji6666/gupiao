@@ -83,7 +83,7 @@ class Fetcher:
                     high=float(row.get("最高", 0) or 0),
                     low=float(row.get("最低", 0) or 0),
                     volume=int(row.get("成交量", 0) or 0),
-                    turnover=float(row.get("成交额", 0) or 0),
+                    turnover=float(row.get("换手率", 0) or 0),
                 )
                 session.add(quote)
                 count += 1
@@ -95,38 +95,83 @@ class Fetcher:
         """获取A股基本面数据"""
         self._log(f"正在获取 {trade_date} 基本面数据...")
         try:
-            # Try stock_a_all_pb() first for valuation data.
-            try:
-                df = ak.stock_a_all_pb()
-            except Exception:
-                df = ak.stock_zh_a_spot_em()
+            date_str = trade_date.strftime("%Y%m%d")
+            df = ak.stock_yjbb_em(date=date_str)
 
-            # stock_a_all_pb() returns market-level data without per-stock codes.
-            # Fall back to stock_zh_a_spot_em() for per-stock PE/PB data.
-            if "代码" not in df.columns and "code" not in df.columns:
-                df = ak.stock_zh_a_spot_em()
+            code_col = "股票代码"
+            roe_col = "净资产收益率"
+            npg_col = "净利润-同比增长"
 
             count = 0
             for _, row in df.iterrows():
-                code = str(row.get("代码", row.get("code", "")))
+                code = str(row[code_col]).strip()
                 if not code:
                     continue
+
                 existing = session.query(Fundamental).filter_by(
                     code=code, date=trade_date
                 ).first()
                 if not existing:
+                    roe_val = None
+                    npg_val = None
+                    try:
+                        v = row[roe_col]
+                        if v is not None and not (isinstance(v, float) and pd.isna(v)):
+                            roe_val = float(v)
+                    except (ValueError, TypeError):
+                        pass
+                    try:
+                        v = row[npg_col]
+                        if v is not None and not (isinstance(v, float) and pd.isna(v)):
+                            npg_val = float(v)
+                    except (ValueError, TypeError):
+                        pass
+
                     f = Fundamental(
                         code=code,
                         date=trade_date,
-                        pe=self._safe_float(row, ["市盈率-动态", "市盈率", "pe"]),
-                        pb=self._safe_float(row, ["市净率", "pb"]),
-                        roe=self._safe_float(row, ["净资产收益率", "roe"]),
-                        net_profit_growth=self._safe_float(
-                            row, ["净利润增长率", "net_profit_growth"]
-                        ),
+                        pe=None,
+                        pb=None,
+                        roe=roe_val,
+                        net_profit_growth=npg_val,
                     )
                     session.add(f)
                     count += 1
+
+            # Supplement PE/PB from spot data
+            try:
+                spot_df = ak.stock_zh_a_spot_em()
+                for _, row in spot_df.iterrows():
+                    code = str(row.get("代码", "")).strip()
+                    if not code:
+                        continue
+                    existing = session.query(Fundamental).filter_by(
+                        code=code, date=trade_date
+                    ).first()
+                    if existing is not None:
+                        pe_val = self._safe_float(row, ["市盈率-动态"])
+                        pb_val = self._safe_float(row, ["市净率"])
+                        if pe_val is not None:
+                            existing.pe = pe_val
+                        if pb_val is not None:
+                            existing.pb = pb_val
+                    else:
+                        pe_val = self._safe_float(row, ["市盈率-动态"])
+                        pb_val = self._safe_float(row, ["市净率"])
+                        if pe_val is not None or pb_val is not None:
+                            f = Fundamental(
+                                code=code,
+                                date=trade_date,
+                                pe=pe_val,
+                                pb=pb_val,
+                                roe=None,
+                                net_profit_growth=None,
+                            )
+                            session.add(f)
+                            count += 1
+            except Exception:
+                pass
+
             session.commit()
             self._log(f"新增基本面记录 {count} 条")
             return count
