@@ -6,7 +6,8 @@ __pycache__/
 venv/
 
 # Project data
-stock-analyzer/data/
+stock-analyzer/data/*
+!stock-analyzer/data/.gitkeep
 stock-analyzer/logs/
 stock-analyzer/reports/
 
