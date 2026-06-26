@@ -96,5 +96,22 @@ def main():
         logger.info("调度器已停止")
 
 
+def start_web():
+    """启动 Web 服务"""
+    import uvicorn
+    from src.web.database import init_db as init_web_db
+    from src.web.app import app
+
+    config = load_config()
+    init_web_db(config["database"]["url"])
+    logger = setup_logger()
+    logger.info("Web 服务启动于 http://0.0.0.0:8000")
+    uvicorn.run(app, host="0.0.0.0", port=8000)
+
+
 if __name__ == "__main__":
-    main()
+    import sys
+    if len(sys.argv) > 1 and sys.argv[1] == "web":
+        start_web()
+    else:
+        main()

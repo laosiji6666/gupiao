@@ -5,3 +5,7 @@ SQLAlchemy>=2.0.0
 PyYAML>=6.0
 APScheduler>=3.10.0
 TA-Lib>=0.4.28
+fastapi>=0.110.0
+uvicorn[standard]>=0.29.0
+jinja2>=3.1.0
+python-multipart>=0.0.9

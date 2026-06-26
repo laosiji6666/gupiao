@@ -21,3 +21,12 @@ def create_app() -> FastAPI:
 
 # 为 uvicorn 直接运行创建的实例
 app = create_app()
+
+if __name__ == "__main__":
+    import uvicorn
+    from src.web.database import init_db
+    from utils.config import load_config
+
+    config = load_config()
+    init_db(config["database"]["url"])
+    uvicorn.run("src.web.app:app", host="0.0.0.0", port=8000, reload=True)
