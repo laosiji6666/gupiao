@@ -1,0 +1,24 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(taskkill /PID 12292 /F)",
+      "Bash(netstat -ano)",
+      "Bash(kill -9 12292)",
+      "Bash(powershell -Command \"Stop-Process -Id 12292 -Force\")",
+      "Bash(python -m uvicorn src.web.app:app --host 0.0.0.0 --port 8080)",
+      "Bash(curl -s \"http://localhost:8080/api/v1/rankings/today?date=2026-06-26\")",
+      "Bash(curl -s \"http://localhost:8080/\")",
+      "Bash(curl -s \"http://localhost:8080/stocks/600519\")",
+      "Bash(python main.py)",
+      "Bash(python -c ' *)",
+      "Bash(curl -s \"https://82.push2.eastmoney.com/api/qt/clist/get?pn=1&pz=5&po=1&np=1&ut=bd1d9ddb04089700cf9c27f6f7426281&fltt=2&invt=2&fid=f3&fs=m:0+t:6,m:0+t:80,m:1+t:2,m:1+t:23,m:0+t:81+s:2048&fields=f2,f3,f4,f12,f14,f15,f16,f17,f18\")",
+      "Bash(python -c \"import ssl; print\\('Python SSL:', ssl.OPENSSL_VERSION\\)\")",
+      "Bash(curl --version)",
+      "Bash(curl -v \"https://82.push2.eastmoney.com/api/qt/clist/get?pn=1&pz=5&po=1&np=1&ut=bd1d9ddb04089700cf9c27f6f7426281&fltt=2&invt=2&fid=f3&fs=m:0+t:6,m:0+t:80,m:1+t:2,m:1+t:23,m:0+t:81+s:2048&fields=f2,f3,f4,f12,f14,f15,f16,f17,f18\")",
+      "Bash(curl -sI \"https://vip.stock.finance.sina.com.cn\")",
+      "Bash(curl -s \"https://vip.stock.finance.sina.com.cn/quotes_service/api/json_v2.php/ Market_Center.getHQNodeData?page=1&num=3&sort=changepercent&asc=0&node=hs_a&symbol=&_s_r_a=init\")",
+      "Bash(python -c \"import akshare; import os; print\\(os.path.dirname\\(akshare.__file__\\)\\)\")",
+      "Bash(cat \"$\\(python -c \"import akshare; import os; print\\(os.path.dirname\\(akshare.__file__\\)\\)\"\\)/stock_feature/stock_zh_a_spot.py\")"
+    ]
+  }
+}

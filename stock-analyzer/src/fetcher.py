@@ -65,10 +65,15 @@ class Fetcher:
     def fetch_daily_quotes(self, session: Session, trade_date: date) -> int:
         """获取A股实时行情数据（作为日线行情使用）"""
         self._log(f"正在获取 {trade_date} 实时行情...")
-        df = ak.stock_zh_a_spot_em()
+        df = ak.stock_zh_a_spot()
         count = 0
         for _, row in df.iterrows():
-            code = str(row.get("代码", ""))
+            raw_code = str(row["代码"])
+            code = raw_code
+            for prefix in ["sh", "sz", "bj"]:
+                if raw_code.startswith(prefix):
+                    code = raw_code[len(prefix):]
+                    break
             if not code:
                 continue
             existing = session.query(DailyQuote).filter_by(
@@ -78,12 +83,12 @@ class Fetcher:
                 quote = DailyQuote(
                     code=code,
                     date=trade_date,
-                    open=float(row.get("今开", 0) or 0),
-                    close=float(row.get("最新价", 0) or 0),
-                    high=float(row.get("最高", 0) or 0),
-                    low=float(row.get("最低", 0) or 0),
-                    volume=int(row.get("成交量", 0) or 0),
-                    turnover=float(row.get("换手率", 0) or 0),
+                    open=float(row["今开"] or 0),
+                    close=float(row["最新价"] or 0),
+                    high=float(row["最高"] or 0),
+                    low=float(row["最低"] or 0),
+                    volume=int(row["成交量"] or 0),
+                    turnover=0.0,  # Sina doesn't provide turnover rate
                 )
                 session.add(quote)
                 count += 1
@@ -138,40 +143,7 @@ class Fetcher:
                     session.add(f)
                     count += 1
 
-            # Supplement PE/PB from spot data
-            try:
-                spot_df = ak.stock_zh_a_spot_em()
-                for _, row in spot_df.iterrows():
-                    code = str(row.get("代码", "")).strip()
-                    if not code:
-                        continue
-                    existing = session.query(Fundamental).filter_by(
-                        code=code, date=trade_date
-                    ).first()
-                    if existing is not None:
-                        pe_val = self._safe_float(row, ["市盈率-动态"])
-                        pb_val = self._safe_float(row, ["市净率"])
-                        if pe_val is not None:
-                            existing.pe = pe_val
-                        if pb_val is not None:
-                            existing.pb = pb_val
-                    else:
-                        pe_val = self._safe_float(row, ["市盈率-动态"])
-                        pb_val = self._safe_float(row, ["市净率"])
-                        if pe_val is not None or pb_val is not None:
-                            f = Fundamental(
-                                code=code,
-                                date=trade_date,
-                                pe=pe_val,
-                                pb=pb_val,
-                                roe=None,
-                                net_profit_growth=None,
-                            )
-                            session.add(f)
-                            count += 1
-            except Exception:
-                pass
-
+            # PE/PB supplement not available from Sina API
             session.commit()
             self._log(f"新增基本面记录 {count} 条")
             return count
