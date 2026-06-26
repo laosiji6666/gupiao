@@ -161,3 +161,20 @@ def test_rankings_page_empty(client, session):
     resp = client.get("/rankings?date=2025-01-01")
     assert resp.status_code == 200
     assert "暂无数据" in resp.text
+
+
+# ── 个股详情页面测试（Task 5） ──────────────────────────────
+
+
+def test_stock_detail_page(client, session):
+    seed_test_data(session)
+    resp = client.get("/stocks/600519")
+    assert resp.status_code == 200
+    assert "text/html" in resp.headers["content-type"]
+    assert "贵州茅台" in resp.text
+    assert "评分走势" in resp.text
+
+
+def test_stock_detail_page_not_found(client, session):
+    resp = client.get("/stocks/999999")
+    assert resp.status_code == 404

@@ -1,0 +1,80 @@
+{# src/web/templates/stock_detail.html #}
+{% extends "base.html" %}
+{% block nav_rankings %}{% endblock %}
+{% block title %}{{ stock.name }} ({{ stock.code }}) - 股票分析系统{% endblock %}
+{% block content %}
+<div class="card">
+    <h2>
+        {{ stock.name }}
+        <span style="font-weight:400;color:#999;font-size:16px;">{{ stock.code }}</span>
+        {% if stock.industry %}
+        <span class="badge badge-neutral" style="font-size:12px;vertical-align:middle;">{{ stock.industry }}</span>
+        {% endif %}
+    </h2>
+    <p style="color:#666;margin-top:8px;">
+        {{ stock.market or "—" }} ·
+        {% if stock.latest_score is not none %}
+            最新评分: <strong class="score">{{ "%.1f"|format(stock.latest_score) }}</strong>
+            ({{ stock.latest_date }})
+        {% else %}
+            暂无评分数据
+        {% endif %}
+    </p>
+</div>
+
+<div class="card">
+    <h3 style="margin-bottom:16px;">📈 历史评分走势</h3>
+    <canvas id="scoreChart" height="80"></canvas>
+</div>
+
+<div class="card">
+    <h3 style="margin-bottom:16px;">📋 评分明细</h3>
+    <table>
+        <thead>
+            <tr>
+                <th>日期</th>
+                <th>评分</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for s in scores %}
+            <tr>
+                <td>{{ s.date }}</td>
+                <td class="score">{{ "%.1f"|format(s.score) }}</td>
+            </tr>
+            {% else %}
+            <tr><td colspan="2" style="text-align:center;color:#999;padding:40px;">暂无数据</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<p><a href="/">← 返回排行榜</a></p>
+
+<script>
+const ctx = document.getElementById('scoreChart').getContext('2d');
+new Chart(ctx, {
+    type: 'line',
+    data: {
+        labels: [{% for s in scores %}'{{ s.date }}',{% endfor %}],
+        datasets: [{
+            label: '综合评分',
+            data: [{% for s in scores %}{{ s.score }},{% endfor %}],
+            borderColor: '#1976d2',
+            backgroundColor: 'rgba(25, 118, 210, 0.1)',
+            fill: true,
+            tension: 0.3,
+            pointRadius: 3,
+        }]
+    },
+    options: {
+        responsive: true,
+        plugins: { legend: { display: false } },
+        scales: {
+            y: { beginAtZero: true, max: 100 },
+            x: { ticks: { maxTicksLimit: 15 } }
+        }
+    }
+});
+</script>
+{% endblock %}

@@ -28,6 +28,42 @@ def rankings_page(
     return _render_rankings(request, session, target_date)
 
 
+@router.get("/stocks/{code}", response_class=HTMLResponse)
+def stock_detail_page(
+    request: Request,
+    code: str,
+    session: Session = Depends(get_db),
+):
+    """个股详情页"""
+    stock = session.query(StockList).filter_by(code=code).first()
+    if not stock:
+        return HTMLResponse("股票未找到", status_code=404)
+
+    results = (
+        session.query(AnalysisResult)
+        .filter_by(code=code)
+        .order_by(AnalysisResult.date.asc())
+        .all()
+    )
+
+    latest = results[-1] if results else None
+
+    return templates.TemplateResponse(request, "stock_detail.html", {
+        "stock": {
+            "code": stock.code,
+            "name": stock.name,
+            "industry": stock.industry,
+            "market": stock.market,
+            "latest_score": latest.score if latest else None,
+            "latest_date": latest.date.isoformat() if latest else None,
+        },
+        "scores": [
+            {"date": ar.date.isoformat(), "score": ar.score}
+            for ar in results
+        ],
+    })
+
+
 def _render_rankings(request: Request, session: Session, target_date: date):
     results = (
         session.query(AnalysisResult)
