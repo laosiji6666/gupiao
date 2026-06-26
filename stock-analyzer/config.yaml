@@ -1,0 +1,36 @@
+# config.yaml
+database:
+  url: "sqlite:///data/stock_analyzer.db"
+
+schedule:
+  hour: 18
+  minute: 0
+
+analyzer:
+  technical_weight: 0.4
+  fundamental_weight: 0.6
+  indicators:
+    ma:
+      enabled: true
+      windows: [5, 10, 20, 60]
+    macd:
+      enabled: true
+      fast: 12
+      slow: 26
+      signal: 9
+    rsi:
+      enabled: true
+      period: 14
+      overbought: 70
+      oversold: 30
+    kdj:
+      enabled: true
+  fundamental:
+    pe_max: 50
+    pb_max: 10
+    roe_min: 15
+    net_profit_growth_min: 10
+
+report:
+  top_n: 30
+  output_dir: "reports"
