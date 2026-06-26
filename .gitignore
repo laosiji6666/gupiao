@@ -19,3 +19,4 @@ stock-analyzer/reports/
 .vscode/
 *.swp
 *.swo
+*.whl
