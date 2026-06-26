@@ -1,6 +1,7 @@
 from pathlib import Path
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
+from fastapi.responses import HTMLResponse
 from src.web.database import init_db
 from src.web.routers import rankings as rankings_router
 from src.web.routers import stocks as stocks_router
@@ -25,6 +26,14 @@ def create_app() -> FastAPI:
     @app.get("/api/v1/health")
     def health():
         return {"status": "ok", "version": "1.0.0"}
+
+    # 提供仪表盘 HTML
+    dashboard_path = Path(__file__).parent.parent.parent / "dashboard.html"
+    if dashboard_path.exists():
+
+        @app.get("/dashboard", response_class=HTMLResponse)
+        async def dashboard():
+            return dashboard_path.read_text(encoding="utf-8")
 
     return app
 

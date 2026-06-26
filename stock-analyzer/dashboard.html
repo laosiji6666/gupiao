@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>📊 股票分析仪表盘</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #0f1923; color: #e0e0e0; min-height: 100vh; }
+        .header { background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); padding: 20px 24px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #2a2a4e; }
+        .header h1 { font-size: 22px; font-weight: 700; background: linear-gradient(90deg, #4fc3f7, #00e676); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .header .status { font-size: 13px; color: #888; }
+        .header .status .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; }
+        .dot.green { background: #00e676; }
+        .dot.red { background: #ff5252; }
+        .dot.yellow { background: #ffd740; }
+        .container { max-width: 1400px; margin: 0 auto; padding: 20px; }
+        .stats-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; margin-bottom: 20px; }
+        .stat-card { background: #1a2332; border-radius: 12px; padding: 18px 20px; border: 1px solid #2a3a4e; }
+        .stat-card .label { font-size: 12px; color: #888; text-transform: uppercase; letter-spacing: 0.5px; }
+        .stat-card .value { font-size: 28px; font-weight: 700; margin-top: 6px; }
+        .stat-card .value.gold { color: #ffd740; }
+        .stat-card .value.blue { color: #4fc3f7; }
+        .stat-card .value.green { color: #00e676; }
+        .stat-card .value.pink { color: #ff80ab; }
+        .panel { background: #1a2332; border-radius: 12px; border: 1px solid #2a3a4e; margin-bottom: 20px; overflow: hidden; }
+        .panel-title { padding: 14px 20px; font-size: 14px; font-weight: 600; color: #aaa; border-bottom: 1px solid #2a3a4e; display: flex; justify-content: space-between; align-items: center; }
+        .panel-title .refresh { font-size: 12px; color: #4fc3f7; cursor: pointer; }
+        .panel-title .refresh:hover { text-decoration: underline; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 10px 16px; text-align: left; font-size: 13px; border-bottom: 1px solid #1e2d3d; }
+        th { background: #141e2d; color: #888; font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; }
+        tr:hover { background: #1e2d3d; }
+        .rank { font-weight: 700; width: 30px; }
+        .rank-1 { color: #ffd740; }
+        .rank-2 { color: #b0bec5; }
+        .rank-3 { color: #ffab91; }
+        .score { font-weight: 700; font-size: 15px; }
+        .score-high { color: #00e676; }
+        .score-mid { color: #ffd740; }
+        .score-low { color: #ff5252; }
+        .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; margin-right: 4px; }
+        .badge-bullish { background: rgba(0,230,118,0.15); color: #00e676; }
+        .badge-bearish { background: rgba(255,82,82,0.15); color: #ff5252; }
+        .badge-neutral { background: rgba(79,195,247,0.15); color: #4fc3f7; }
+        .badge-overbought { background: rgba(255,82,82,0.15); color: #ff5252; }
+        .badge-oversold { background: rgba(0,230,118,0.15); color: #00e676; }
+        .badge-golden_cross { background: rgba(0,230,118,0.15); color: #00e676; }
+        .badge-dead_cross { background: rgba(255,82,82,0.15); color: #ff5252; }
+        .badge-normal { background: rgba(79,195,247,0.15); color: #4fc3f7; }
+        .industry-tag { font-size: 11px; color: #888; background: #0f1923; padding: 2px 8px; border-radius: 4px; }
+        .code-link { color: #4fc3f7; cursor: pointer; text-decoration: none; }
+        .code-link:hover { text-decoration: underline; }
+        .loading { text-align: center; padding: 60px; color: #666; }
+        .loading .spinner { width: 40px; height: 40px; border: 3px solid #2a3a4e; border-top-color: #4fc3f7; border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 16px; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .error { text-align: center; padding: 40px; color: #ff5252; }
+        .error .hint { color: #888; font-size: 13px; margin-top: 8px; }
+        .last-update { font-size: 12px; color: #555; text-align: center; padding: 20px; }
+        .auto-refresh { font-size: 12px; color: #4fc3f7; text-align: center; padding: 0 20px 16px; }
+        @media (max-width: 768px) {
+            .stats-row { grid-template-columns: repeat(2, 1fr); }
+            th, td { padding: 8px 10px; font-size: 12px; }
+        }
+        .stock-modal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); z-index: 1000; align-items: center; justify-content: center; }
+        .stock-modal.show { display: flex; }
+        .modal-content { background: #1a2332; border-radius: 12px; border: 1px solid #2a3a4e; width: 90%; max-width: 700px; max-height: 80vh; overflow-y: auto; padding: 24px; }
+        .modal-content h2 { margin-bottom: 16px; }
+        .modal-close { float: right; background: none; border: none; color: #888; font-size: 24px; cursor: pointer; }
+        .modal-close:hover { color: #fff; }
+        .chart-container { height: 200px; margin: 16px 0; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>📊 股票分析仪表盘</h1>
+        <div class="status">
+            <span class="dot" id="statusDot"></span>
+            <span id="statusText">连接中...</span>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="stats-row" id="statsRow">
+            <div class="stat-card"><div class="label">分析股票</div><div class="value blue" id="totalStocks">—</div></div>
+            <div class="stat-card"><div class="label">最高评分</div><div class="value gold" id="maxScore">—</div></div>
+            <div class="stat-card"><div class="label">平均评分</div><div class="value green" id="avgScore">—</div></div>
+            <div class="stat-card"><div class="label">数据日期</div><div class="value pink" id="dataDate" style="font-size:18px;">—</div></div>
+        </div>
+
+        <div class="panel">
+            <div class="panel-title">
+                🏆 选股排行榜
+                <span class="refresh" onclick="loadData()">🔄 刷新</span>
+            </div>
+            <div id="loadingState">
+                <div class="loading">
+                    <div class="spinner"></div>
+                    <div>正在加载数据...</div>
+                </div>
+            </div>
+            <div id="errorState" style="display:none;">
+                <div class="error">
+                    <div>⚠️ 无法连接到服务器</div>
+                    <div class="hint">请先启动 Web 服务：<br>双击「启动工具.bat」或在终端运行 <code>uvicorn src.web.app:app</code></div>
+                </div>
+            </div>
+            <div id="tableContainer" style="display:none;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>代码</th>
+                            <th>名称</th>
+                            <th>行业</th>
+                            <th>评分</th>
+                            <th>技术信号</th>
+                        </tr>
+                    </thead>
+                    <tbody id="rankingsBody"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="auto-refresh" id="autoRefresh">⏱ 每 60 秒自动刷新</div>
+        <div class="last-update" id="lastUpdate"></div>
+    </div>
+
+    <!-- 个股详情弹窗 -->
+    <div class="stock-modal" id="stockModal">
+        <div class="modal-content">
+            <button class="modal-close" onclick="closeModal()">&times;</button>
+            <h2 id="modalTitle">加载中...</h2>
+            <div id="modalInfo"></div>
+            <div class="chart-container"><canvas id="modalChart"></canvas></div>
+            <div id="modalHistory"></div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = window.location.origin;
+        let chartInstance = null;
+        let autoRefreshTimer = null;
+
+        async function loadData() {
+            const loading = document.getElementById('loadingState');
+            const error = document.getElementById('errorState');
+            const table = document.getElementById('tableContainer');
+            const dot = document.getElementById('statusDot');
+            const statusText = document.getElementById('statusText');
+
+            loading.style.display = 'block';
+            error.style.display = 'none';
+            table.style.display = 'none';
+            dot.className = 'dot yellow';
+            statusText.textContent = '加载中...';
+
+            try {
+                // 获取今日排行
+                const today = new Date().toISOString().split('T')[0];
+                const resp = await fetch(`${API_BASE}/api/v1/rankings/today?date=${today}`);
+                if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+                const data = await resp.json();
+
+                if (!data.rankings || data.rankings.length === 0) {
+                    // 尝试用昨天的日期
+                    const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+                    const resp2 = await fetch(`${API_BASE}/api/v1/rankings/history?date=${yesterday}`);
+                    if (resp2.ok) {
+                        const data2 = await resp2.json();
+                        if (data2.rankings && data2.rankings.length > 0) {
+                            renderData(data2);
+                            loading.style.display = 'none';
+                            table.style.display = 'block';
+                            dot.className = 'dot green';
+                            statusText.textContent = '已连接';
+                            return;
+                        }
+                    }
+                    throw new Error('暂无数据');
+                }
+
+                renderData(data);
+                loading.style.display = 'none';
+                table.style.display = 'block';
+                dot.className = 'dot green';
+                statusText.textContent = '已连接';
+
+            } catch (err) {
+                loading.style.display = 'none';
+                error.style.display = 'block';
+                dot.className = 'dot red';
+                statusText.textContent = '连接失败';
+                console.error(err);
+            }
+        }
+
+        function renderData(data) {
+            const rankings = data.rankings;
+            const scores = rankings.map(r => r.score).filter(s => s != null);
+
+            document.getElementById('totalStocks').textContent = rankings.length;
+            document.getElementById('maxScore').textContent = scores.length ? Math.max(...scores).toFixed(1) : '—';
+            document.getElementById('avgScore').textContent = scores.length ? (scores.reduce((a,b) => a+b, 0) / scores.length).toFixed(1) : '—';
+            document.getElementById('dataDate').textContent = data.date;
+
+            const tbody = document.getElementById('rankingsBody');
+            tbody.innerHTML = '';
+
+            rankings.forEach((item, i) => {
+                const tr = document.createElement('tr');
+                const rankClass = i === 0 ? 'rank-1' : i === 1 ? 'rank-2' : i === 2 ? 'rank-3' : '';
+                const medals = ['🥇', '🥈', '🥉'];
+                const rankDisplay = i < 3 ? medals[i] : (i + 1);
+
+                const scoreClass = item.score >= 70 ? 'score-high' : item.score >= 50 ? 'score-mid' : 'score-low';
+
+                let signalsHtml = '—';
+                if (item.signals && item.signals.technical) {
+                    signalsHtml = Object.entries(item.signals.technical).map(([k, v]) =>
+                        `<span class="badge badge-${v}">${k.toUpperCase()}: ${v}</span>`
+                    ).join('');
+                }
+
+                tr.innerHTML = `
+                    <td class="rank ${rankClass}">${rankDisplay}</td>
+                    <td><a class="code-link" onclick="showStock('${item.code}')">${item.code}</a></td>
+                    <td><a class="code-link" onclick="showStock('${item.code}')">${item.name || '—'}</a></td>
+                    <td>${item.industry ? `<span class="industry-tag">${item.industry}</span>` : '—'}</td>
+                    <td class="score ${scoreClass}">${item.score != null ? item.score.toFixed(1) : '—'}</td>
+                    <td>${signalsHtml}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            document.getElementById('lastUpdate').textContent = `最后更新: ${new Date().toLocaleString('zh-CN')}`;
+        }
+
+        async function showStock(code) {
+            const modal = document.getElementById('stockModal');
+            modal.classList.add('show');
+            document.getElementById('modalTitle').textContent = `${code} 详情`;
+            document.getElementById('modalInfo').innerHTML = '加载中...';
+            document.getElementById('modalHistory').innerHTML = '';
+
+            if (chartInstance) { chartInstance.destroy(); chartInstance = null; }
+
+            try {
+                const resp = await fetch(`${API_BASE}/api/v1/stocks/${code}`);
+                if (!resp.ok) throw new Error('Not found');
+                const detail = await resp.json();
+                document.getElementById('modalTitle').textContent = `${detail.name} (${detail.code})`;
+                document.getElementById('modalInfo').innerHTML = `
+                    <p style="color:#888;margin-bottom:12px;">
+                        行业: ${detail.industry || '—'} · 市场: ${detail.market || '—'}
+                        ${detail.latest_score != null ? `· 最新评分: <strong style="color:#4fc3f7">${detail.latest_score}</strong>` : ''}
+                    </p>
+                `;
+
+                const histResp = await fetch(`${API_BASE}/api/v1/stocks/${code}/history`);
+                if (histResp.ok) {
+                    const hist = await histResp.json();
+                    if (hist.scores && hist.scores.length > 0) {
+                        renderChart(hist.scores);
+                        document.getElementById('modalHistory').innerHTML = `
+                            <h3 style="color:#aaa;font-size:13px;margin:16px 0 8px;">📋 评分明细</h3>
+                            <table><thead><tr><th>日期</th><th>评分</th></tr></thead>
+                            <tbody>${hist.scores.map(s => `<tr><td>${s.date}</td><td class="score">${s.score.toFixed(1)}</td></tr>`).join('')}
+                            </tbody></table>`;
+                    }
+                }
+            } catch (err) {
+                document.getElementById('modalInfo').innerHTML = '<p style="color:#ff5252;">❌ 未找到该股票</p>';
+            }
+        }
+
+        function renderChart(scores) {
+            const ctx = document.getElementById('modalChart').getContext('2d');
+            chartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: scores.map(s => s.date),
+                    datasets: [{
+                        label: '评分',
+                        data: scores.map(s => s.score),
+                        borderColor: '#4fc3f7',
+                        backgroundColor: 'rgba(79,195,247,0.1)',
+                        fill: true,
+                        tension: 0.3,
+                        pointRadius: 3,
+                        pointBackgroundColor: '#4fc3f7',
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        y: { beginAtZero: true, max: 100, grid: { color: '#1e2d3d' }, ticks: { color: '#666' } },
+                        x: { ticks: { color: '#666', maxTicksLimit: 10 } }
+                    }
+                }
+            });
+        }
+
+        function closeModal() {
+            document.getElementById('stockModal').classList.remove('show');
+            if (chartInstance) { chartInstance.destroy(); chartInstance = null; }
+        }
+
+        // 点击弹窗外部关闭
+        document.getElementById('stockModal').addEventListener('click', function(e) {
+            if (e.target === this) closeModal();
+        });
+
+        // 自动刷新
+        function startAutoRefresh() {
+            if (autoRefreshTimer) clearInterval(autoRefreshTimer);
+            autoRefreshTimer = setInterval(loadData, 60000);
+        }
+
+        // 页面加载时自动运行
+        document.addEventListener('DOMContentLoaded', () => {
+            loadData();
+            startAutoRefresh();
+        });
+    </script>
+</body>
+</html>
