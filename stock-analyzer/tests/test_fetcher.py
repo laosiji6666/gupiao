@@ -61,11 +61,11 @@ def test_fetch_stock_list_dedup(fetcher, session):
     assert session.query(StockList).count() == 2
 
 
-@patch("src.fetcher.ak.stock_zh_a_hist")
-def test_fetch_daily_quotes(mock_daily, fetcher, session):
-    mock_daily.return_value = pd.DataFrame([
-        {"code": "600519", "开盘": 1500.0, "收盘": 1510.0, "最高": 1520.0,
-         "最低": 1490.0, "成交量": 5000000, "换手率": 0.5},
+@patch("src.fetcher.ak.stock_zh_a_spot_em")
+def test_fetch_daily_quotes(mock_spot, fetcher, session):
+    mock_spot.return_value = pd.DataFrame([
+        {"代码": "600519", "今开": 1500.0, "最新价": 1510.0, "最高": 1520.0,
+         "最低": 1490.0, "成交量": 5000000, "成交额": 0.5},
     ])
     trade_date = date(2026, 6, 26)
     count = fetcher.fetch_daily_quotes(session, trade_date)
@@ -76,8 +76,8 @@ def test_fetch_daily_quotes(mock_daily, fetcher, session):
     assert q.close == 1510.0
 
 
-@patch("src.fetcher.ak.stock_zh_a_hist")
-def test_fetch_daily_quotes_dedup(mock_daily, fetcher, session):
+@patch("src.fetcher.ak.stock_zh_a_spot_em")
+def test_fetch_daily_quotes_dedup(mock_spot, fetcher, session):
     """Existing records should not be duplicated."""
     trade_date = date(2026, 6, 26)
     session.add(DailyQuote(
@@ -86,19 +86,25 @@ def test_fetch_daily_quotes_dedup(mock_daily, fetcher, session):
         volume=5000000, turnover=0.5,
     ))
     session.commit()
-    mock_daily.return_value = pd.DataFrame([
-        {"code": "600519", "开盘": 1500.0, "收盘": 1510.0, "最高": 1520.0,
-         "最低": 1490.0, "成交量": 5000000, "换手率": 0.5},
+    mock_spot.return_value = pd.DataFrame([
+        {"代码": "600519", "今开": 1500.0, "最新价": 1510.0, "最高": 1520.0,
+         "最低": 1490.0, "成交量": 5000000, "成交额": 0.5},
     ])
     count = fetcher.fetch_daily_quotes(session, trade_date)
     assert count == 0
     assert session.query(DailyQuote).count() == 1
 
 
-@patch("src.fetcher.ak.stock_a_lg_indicator", create=True)
-def test_fetch_fundamentals(mock_fund, fetcher, session):
-    mock_fund.return_value = pd.DataFrame([
-        {"code": "600519", "pe": 25.0, "pb": 6.0, "roe": 30.0, "净利润增长率": 15.0},
+@patch("src.fetcher.ak.stock_zh_a_spot_em")
+@patch("src.fetcher.ak.stock_a_all_pb", create=True)
+def test_fetch_fundamentals(mock_pb, mock_spot, fetcher, session):
+    # stock_a_all_pb returns market-level data (no per-stock code column)
+    mock_pb.return_value = pd.DataFrame([
+        {"date": "2026-06-26", "middlePB": 2.0}
+    ])
+    # Falls back to stock_zh_a_spot_em for per-stock PE/PB data
+    mock_spot.return_value = pd.DataFrame([
+        {"代码": "600519", "市盈率-动态": 25.0, "市净率": 6.0},
     ])
     trade_date = date(2026, 6, 26)
     count = fetcher.fetch_fundamentals(session, trade_date)
@@ -106,13 +112,18 @@ def test_fetch_fundamentals(mock_fund, fetcher, session):
     assert session.query(Fundamental).count() == 1
     f = session.query(Fundamental).first()
     assert f.code == "600519"
-    assert f.roe == 30.0
+    assert f.pe == 25.0
+    assert f.pb == 6.0
+    assert f.roe is None
+    assert f.net_profit_growth is None
 
 
-@patch("src.fetcher.ak.stock_a_lg_indicator", create=True)
-def test_fetch_fundamentals_failure(mock_fund, fetcher, session):
+@patch("src.fetcher.ak.stock_zh_a_spot_em")
+@patch("src.fetcher.ak.stock_a_all_pb", create=True)
+def test_fetch_fundamentals_failure(mock_pb, mock_spot, fetcher, session):
     """If the akshare call raises, we should get 0 and not crash."""
-    mock_fund.side_effect = Exception("API error")
+    mock_pb.side_effect = Exception("API error")
+    mock_spot.side_effect = Exception("API error")
     trade_date = date(2026, 6, 26)
     count = fetcher.fetch_fundamentals(session, trade_date)
     assert count == 0
