@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:github.com)",
+      "WebSearch",
+      "Bash(git clone *)",
+      "Bash(git --version)",
+      "Bash(gh --version)",
+      "Bash(curl -sI https://github.com)",
+      "Bash(ping -n 2 github.com)",
+      "Bash(curl -sL https://github.com/obra/superpowers/archive/refs/heads/main.zip -o /tmp/superpowers.zip)",
+      "Read(//tmp/**)",
+      "Bash(unzip -o superpowers.zip -d superpowers-extracted)",
+      "Bash(ls -la ~/.claude/plugins/ 2>/dev/null || echo \"No plugins directory\")",
+      "Read(//c/Users/Administrator/.claude/plugins/**)",
+      "Bash(ls -la ~/.claude/ 2>/dev/null || echo \"No .claude directory\")",
+      "Read(//c/Users/Administrator/.claude/**)"
+    ]
+  }
+}

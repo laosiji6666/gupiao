@@ -1,7 +1,7 @@
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from sqlalchemy import (
     Column, String, Date, DateTime, Integer, Float, JSON,
-    create_engine, PrimaryKeyConstraint
+    PrimaryKeyConstraint
 )
 from sqlalchemy.orm import DeclarativeBase
 
@@ -62,7 +62,7 @@ class AnalysisResult(Base):
     code = Column(String(10), nullable=False)
     score = Column(Float)
     signals = Column(JSON)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
 
 def init_db(engine):
