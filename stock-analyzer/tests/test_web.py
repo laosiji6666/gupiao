@@ -98,3 +98,48 @@ def test_rankings_no_data(client, session):
     data = resp.json()
     assert data["count"] == 0
     assert data["rankings"] == []
+
+
+# ── 个股详情 + 历史评分 API 测试（Task 3） ───────────────────
+
+
+def test_stock_detail(client, session):
+    seed_test_data(session)
+    resp = client.get("/api/v1/stocks/600519")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["code"] == "600519"
+    assert data["name"] == "贵州茅台"
+
+
+def test_stock_not_found(client, session):
+    resp = client.get("/api/v1/stocks/999999")
+    assert resp.status_code == 404
+
+
+def test_stock_history(client, session):
+    seed_test_data(session)
+    # Add more historical data
+    from datetime import timedelta
+    for days_back in range(5, 0, -1):
+        d = date(2026, 6, 20 + days_back)
+        session.add(AnalysisResult(
+            date=d, code="600519",
+            score=float(80 + days_back),
+            signals={},
+        ))
+    session.commit()
+
+    resp = client.get("/api/v1/stocks/600519/history")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["code"] == "600519"
+    assert len(data["scores"]) >= 6  # 1 from seed + 5 new
+    # Should be sorted by date ascending
+    dates = [s["date"] for s in data["scores"]]
+    assert dates == sorted(dates)
+
+
+def test_stock_history_empty(client, session):
+    resp = client.get("/api/v1/stocks/999999/history")
+    assert resp.status_code == 404
