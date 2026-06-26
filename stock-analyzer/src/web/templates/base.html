@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}股票分析系统{% endblock %}</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f0f2f5; color: #333; }
+        .nav { background: #1a1a2e; color: white; padding: 16px 24px; display: flex; align-items: center; gap: 24px; }
+        .nav a { color: #ccc; text-decoration: none; font-size: 14px; }
+        .nav a:hover { color: white; }
+        .nav a.active { color: #4fc3f7; font-weight: 600; }
+        .nav h1 { font-size: 18px; margin-right: 16px; }
+        .container { max-width: 1200px; margin: 0 auto; padding: 24px; }
+        .card { background: white; border-radius: 8px; padding: 20px; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid #eee; font-size: 14px; }
+        th { background: #f5f5f5; font-weight: 600; color: #666; }
+        tr:hover { background: #f8faff; }
+        .score { font-weight: 700; color: #e67e22; }
+        .rank-1 { color: #d4af37; }
+        .rank-2 { color: #a8a8a8; }
+        .rank-3 { color: #cd7f32; }
+        .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 12px; }
+        .badge-bullish { background: #e8f5e9; color: #2e7d32; }
+        .badge-bearish { background: #ffebee; color: #c62828; }
+        .badge-neutral { background: #e3f2fd; color: #1565c0; }
+        .footer { text-align: center; color: #999; font-size: 12px; padding: 24px; }
+        .date-picker { display: flex; align-items: center; gap: 8px; margin-bottom: 16px; }
+        .date-picker input { padding: 6px 12px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; }
+        .date-picker button { padding: 6px 16px; background: #1a1a2e; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        .date-picker button:hover { background: #2a2a4e; }
+        .summary { display: flex; gap: 16px; margin-bottom: 16px; }
+        .summary .stat { background: white; border-radius: 8px; padding: 16px 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); flex: 1; text-align: center; }
+        .summary .stat .value { font-size: 28px; font-weight: 700; color: #1a1a2e; }
+        .summary .stat .label { font-size: 12px; color: #999; margin-top: 4px; }
+        @media (max-width: 768px) { .summary { flex-direction: column; } }
+        a { color: #1976d2; text-decoration: none; }
+        a:hover { text-decoration: underline; }
+    </style>
+</head>
+<body>
+    <nav class="nav">
+        <h1>📊 股票分析系统</h1>
+        <a href="/" class="{% block nav_rankings %}{% endblock %}">排行榜</a>
+    </nav>
+    <div class="container">
+        {% block content %}{% endblock %}
+    </div>
+    <div class="footer">由自动化股票分析工具生成 · 数据仅供参考</div>
+</body>
+</html>

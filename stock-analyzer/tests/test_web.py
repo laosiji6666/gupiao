@@ -143,3 +143,21 @@ def test_stock_history(client, session):
 def test_stock_history_empty(client, session):
     resp = client.get("/api/v1/stocks/999999/history")
     assert resp.status_code == 404
+
+
+# ── 页面路由测试（Task 4） ──────────────────────────────
+
+
+def test_index_page_renders(client, session):
+    seed_test_data(session)
+    resp = client.get("/")
+    assert resp.status_code == 200
+    assert "text/html" in resp.headers["content-type"]
+    assert "贵州茅台" in resp.text
+    assert "600519" in resp.text
+
+
+def test_rankings_page_empty(client, session):
+    resp = client.get("/rankings?date=2025-01-01")
+    assert resp.status_code == 200
+    assert "暂无数据" in resp.text

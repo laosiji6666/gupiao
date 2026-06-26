@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block nav_rankings %}active{% endblock %}
+{% block title %}选股排行榜 - 股票分析系统{% endblock %}
+{% block content %}
+<div class="card">
+    <h2 style="margin-bottom: 12px;">📈 选股排行榜</h2>
+    <div class="date-picker">
+        <form method="get" action="/rankings">
+            <label>日期：</label>
+            <input type="date" name="date" value="{{ date }}">
+            <button type="submit">查看</button>
+        </form>
+    </div>
+    {% if date != today %}
+    <p style="color: #999; margin-bottom: 12px;">← <a href="/">返回今日排行榜</a></p>
+    {% endif %}
+</div>
+
+<div class="summary">
+    <div class="stat">
+        <div class="value">{{ rankings|length }}</div>
+        <div class="label">筛选股票</div>
+    </div>
+    <div class="stat">
+        <div class="value">{{ "%.1f"|format(avg_score) if avg_score else "—" }}</div>
+        <div class="label">平均评分</div>
+    </div>
+    <div class="stat">
+        <div class="value">{{ "%.0f"|format(max_score) if max_score else "—" }}</div>
+        <div class="label">最高评分</div>
+    </div>
+</div>
+
+<div class="card">
+    <table>
+        <thead>
+            <tr>
+                <th>排名</th>
+                <th>代码</th>
+                <th>名称</th>
+                <th>行业</th>
+                <th>综合评分</th>
+                <th>技术信号</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in rankings %}
+            <tr>
+                <td class="rank-{{ item.rank if item.rank <= 3 else '' }}">
+                    {% if item.rank == 1 %}🥇
+                    {% elif item.rank == 2 %}🥈
+                    {% elif item.rank == 3 %}🥉
+                    {% else %}{{ item.rank }}{% endif %}
+                </td>
+                <td><a href="/stocks/{{ item.code }}">{{ item.code }}</a></td>
+                <td><a href="/stocks/{{ item.code }}">{{ item.name }}</a></td>
+                <td>{{ item.industry or "—" }}</td>
+                <td class="score">{{ "%.1f"|format(item.score) }}</td>
+                <td>
+                    {% if item.signals and item.signals.technical %}
+                        {% for k, v in item.signals.technical.items() %}
+                            <span class="badge badge-{{ v }}">{{ k.upper() }}: {{ v }}</span>
+                        {% endfor %}
+                    {% else %}
+                        —
+                    {% endif %}
+                </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="6" style="text-align:center;color:#999;padding:40px;">暂无数据</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}
