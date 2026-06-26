@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# Local data (created at runtime)
+data/
+logs/
+reports/
+
+# SDD workspace artifacts
+.superpowers/
+
+# Git
+.git/
+
+# Editor
+.vscode/
+*.swp
+*.swo
+
+# Temp files
+_sina_cols.txt
+.pytest_cache/
+*.pyc
