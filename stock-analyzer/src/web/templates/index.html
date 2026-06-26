@@ -22,11 +22,11 @@
         <div class="label">筛选股票</div>
     </div>
     <div class="stat">
-        <div class="value">{{ "%.1f"|format(avg_score) if avg_score else "—" }}</div>
+        <div class="value">{{ "%.1f"|format(avg_score) if avg_score is not none else "—" }}</div>
         <div class="label">平均评分</div>
     </div>
     <div class="stat">
-        <div class="value">{{ "%.0f"|format(max_score) if max_score else "—" }}</div>
+        <div class="value">{{ "%.0f"|format(max_score) if max_score is not none else "—" }}</div>
         <div class="label">最高评分</div>
     </div>
 </div>
@@ -55,7 +55,7 @@
                 <td><a href="/stocks/{{ item.code }}">{{ item.code }}</a></td>
                 <td><a href="/stocks/{{ item.code }}">{{ item.name }}</a></td>
                 <td>{{ item.industry or "—" }}</td>
-                <td class="score">{{ "%.1f"|format(item.score) }}</td>
+                <td class="score">{{ "%.1f"|format(item.score) if item.score is not none else "—" }}</td>
                 <td>
                     {% if item.signals and item.signals.technical %}
                         {% for k, v in item.signals.technical.items() %}

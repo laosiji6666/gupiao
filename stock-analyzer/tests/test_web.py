@@ -150,7 +150,7 @@ def test_stock_history_empty(client, session):
 
 def test_index_page_renders(client, session):
     seed_test_data(session)
-    resp = client.get("/")
+    resp = client.get("/rankings?date=2026-06-26")
     assert resp.status_code == 200
     assert "text/html" in resp.headers["content-type"]
     assert "贵州茅台" in resp.text
