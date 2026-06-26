@@ -1,0 +1,20 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# Project data
+stock-analyzer/data/
+stock-analyzer/logs/
+stock-analyzer/reports/
+
+# SDD workspace artifacts
+.superpowers/sdd/
+
+# Editor
+.idea/
+.vscode/
+*.swp
+*.swo
