@@ -27,9 +27,11 @@ def generate_csv(
 
 def generate_html(
     session: Session, report_date: date, output_path: str,
-    top_n: int = 30,
+    top_n: int = 30, config: dict = None,
 ) -> str:
     """生成 HTML 格式的选股报告"""
+    if config:
+        top_n = config.get("report", {}).get("top_n", top_n)
     results = _get_results(session, report_date)
     results = results[:top_n]
 
