@@ -24,7 +24,26 @@
       "Bash(git push *)",
       "Bash(npm list *)",
       "Bash(npm install *)",
-      "Bash(pip download *)"
+      "Bash(pip download *)",
+      "Bash(git rm *)",
+      "Bash(echo \"*.whl\")",
+      "Bash(findstr \":8080\")",
+      "Bash(powershell -Command \"Get-NetTCPConnection -LocalPort 8080 -ErrorAction SilentlyContinue | Select-Object -ExpandProperty OwningProcess\")",
+      "Bash(powershell -Command \"Get-Process -Id \\(Get-NetTCPConnection -LocalPort 8080 -ErrorAction SilentlyContinue\\).OwningProcess -ErrorAction SilentlyContinue | Stop-Process -Force\")",
+      "Bash(curl -s http://localhost:8080/dashboard)",
+      "Bash(cmd.exe /c \"启动工具.bat\")",
+      "Bash(python build_exe.py)",
+      "Bash(tail -10 /c/Users/Administrator/.claude/projects/d--AI-superpowers/c1a690d0-d6f7-4912-a056-3ea3eb4fbc97/tool-results/brfxa4rq6.txt)",
+      "Read(//c/Users/Administrator/.claude/projects/d--AI-superpowers/c1a690d0-d6f7-4912-a056-3ea3eb4fbc97/tool-results/**)",
+      "Bash(./StockAnalyzer.exe)",
+      "Bash(kill %1)",
+      "Bash(wait)",
+      "Bash(curl -s http://localhost:8080/api/v1/rankings/today?date=2026-06-26)",
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(f'Stocks: {d[\\\\\"count\\\\\"]}'\\)\")",
+      "Bash(timeout 10 ./StockAnalyzer.exe)",
+      "Bash(rm -f StockAnalyzer.zip)",
+      "Bash(powershell -Command \"Compress-Archive -Path StockAnalyzer -DestinationPath StockAnalyzer.zip\")",
+      "Bash(git reset *)"
     ]
   }
 }

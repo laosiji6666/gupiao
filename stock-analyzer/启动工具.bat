@@ -1,46 +1,49 @@
 @echo off
-chcp 65001 >nul
-title 📊 股票分析工具
-
 cd /d "%~dp0"
 
-echo ╔══════════════════════════════════════╗
-echo ║      📊 股票分析系统启动中...         ║
-echo ╚══════════════════════════════════════╝
+title Stock Analyzer
+
+echo ========================================
+echo   Stock Analyzer - Starting...
+echo ========================================
 echo.
 
-:: 检查 Python
+:: Check Python
 where python >nul 2>nul
 if %errorlevel% neq 0 (
-    echo ❌ 未找到 Python，请先安装
+    echo [ERROR] Python not found. Please install Python first.
     pause
     exit /b 1
 )
 
-:: 检查依赖
-echo 🔍 检查依赖...
+:: Check dependencies
+echo [INFO] Checking dependencies...
 python -c "import akshare" 2>nul
 if %errorlevel% neq 0 (
-    echo 📦 安装依赖中...
+    echo [INFO] Installing dependencies...
     pip install -r requirements.txt
 )
 
-:: 运行数据分析
-echo 📈 正在获取股票数据并分析...
+:: Run data analysis
+echo [INFO] Fetching stock data and analyzing...
 start /B /MIN python main.py
 
-:: 启动 Web 服务
-echo 🌐 启动 Web 界面...
+:: Start web server
+echo [INFO] Starting web server...
 start /B python -m uvicorn src.web.app:app --host 0.0.0.0 --port 8080
 
-:: 等待服务启动
+:: Wait for server
 timeout /t 3 /nobreak >nul
 
-:: 打开浏览器
-echo ✅ 正在打开浏览器...
-start http://localhost:8080
+:: Open browser
+echo [INFO] Opening browser...
+start http://localhost:8080/dashboard
 
 echo.
-echo 🔔 按任意键关闭本窗口（Web服务仍在后台运行）
+echo ========================================
+echo   Web server is running at:
+echo   http://localhost:8080/dashboard
+echo   Close this window to stop.
+echo ========================================
 echo.
 pause >nul

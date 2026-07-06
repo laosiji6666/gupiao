@@ -98,41 +98,63 @@ class Fetcher:
 
     def backfill_history(self, session: Session, days: int = 60) -> int:
         """
-        首次运行时补充历史日线数据。
-        遍历所有股票，用 stock_zh_a_hist 获取历史 K 线。
-        days: 需要回填的历史天数（实际会多拉一些以覆盖周末）
+        首次运行时补充历史日线数据（使用腾讯财经 API）。
+        days: 需要回填的历史天数
         """
+        import requests as req
+
         stocks = session.query(StockList).all()
         if not stocks:
             self._log("股票列表为空，跳过历史回填")
             return 0
 
-        end_date = date.today()
-        start_date = end_date - timedelta(days=int(days * 1.5))  # 多拉一些避开周末
-        date_str_start = start_date.strftime("%Y%m%d")
-        date_str_end = end_date.strftime("%Y%m%d")
-
         self._log(f"开始回填 {len(stocks)} 只股票的历史数据 ({days} 天)...")
         total_inserted = 0
+        consecutive_failures = 0
+        MAX_FAILURES = 5
+
+        headers = {"User-Agent": "Mozilla/5.0"}
+        today = date.today()
 
         for i, stock in enumerate(stocks):
+            if consecutive_failures >= MAX_FAILURES:
+                self._log(f"检测到网络不可用，跳过剩余 {len(stocks) - i} 只股票的回填", "warning")
+                break
+
+            # 确定市场前缀
+            code_str = stock.code
+            if code_str.startswith("6"):
+                tx_symbol = f"sh{code_str}"
+            elif code_str.startswith(("0", "3")):
+                tx_symbol = f"sz{code_str}"
+            else:
+                continue  # 跳过北交所和其他市场
+
             try:
-                df = ak.stock_zh_a_hist(
-                    symbol=stock.code,
-                    start_date=date_str_start,
-                    end_date=date_str_end,
-                    adjust="",
-                )
-                if df is None or df.empty:
+                url = "https://proxy.finance.qq.com/ifzqgtimg/appstock/app/newfqkline/get"
+                params = {"param": f"{tx_symbol},day,,,{days},qfq"}
+                resp = req.get(url, params=params, headers=headers, timeout=10)
+                resp.raise_for_status()
+
+                data = resp.json()
+                if data.get("code") != 0:
+                    continue
+
+                # 解析 K 线数据
+                symbol_data = data.get("data", {}).get(tx_symbol, {})
+                klines = symbol_data.get("qfqday") or symbol_data.get("day")
+                if not klines:
                     continue
 
                 inserted = 0
-                for _, row in df.iterrows():
+                for kline in klines:
+                    # kline format: [date, open, close, high, low, volume, {}, change%, amount, ""]
+                    if len(kline) < 6 or not isinstance(kline[0], str):
+                        continue
                     try:
-                        # stock_zh_a_hist 返回的列：日期,开盘,收盘,最高,最低,成交量,成交额,振幅,涨跌幅,涨跌额,换手率
-                        quote_date = row["日期"]
-                        if isinstance(quote_date, str):
-                            quote_date = pd.to_datetime(quote_date).date()
+                        quote_date = pd.to_datetime(kline[0]).date()
+                        if quote_date > today:
+                            continue
 
                         existing = session.query(DailyQuote).filter_by(
                             code=stock.code, date=quote_date
@@ -143,27 +165,30 @@ class Fetcher:
                         quote = DailyQuote(
                             code=stock.code,
                             date=quote_date,
-                            open=float(row.get("开盘", 0) or 0),
-                            close=float(row.get("收盘", 0) or 0),
-                            high=float(row.get("最高", 0) or 0),
-                            low=float(row.get("最低", 0) or 0),
-                            volume=int(row.get("成交量", 0) or 0),
-                            turnover=float(row.get("换手率", 0) or 0),
+                            open=float(kline[1]),
+                            close=float(kline[2]),
+                            high=float(kline[3]),
+                            low=float(kline[4]),
+                            volume=int(float(kline[5])),
+                            turnover=0.0,  # 腾讯 API 不提供换手率
                         )
                         session.add(quote)
                         inserted += 1
-                    except (ValueError, TypeError) as e:
-                        self._log(f"  行解析错误 ({stock.code}): {e}", "debug")
+                    except (ValueError, TypeError, IndexError):
                         continue
 
                 if inserted > 0:
                     session.commit()
                     total_inserted += inserted
+                    consecutive_failures = 0  # 成功，重置失败计数
 
                 if (i + 1) % 200 == 0:
                     self._log(f"  回填进度: {i+1}/{len(stocks)}, 已插入 {total_inserted} 条")
 
             except Exception as e:
+                is_conn = any(x in str(e) for x in ["Connection", "RemoteDisconnected", "reset", "Timeout"])
+                if is_conn:
+                    consecutive_failures += 1
                 self._log(f"  回填 {stock.code} 失败: {e}", "warning")
                 session.rollback()
                 continue
