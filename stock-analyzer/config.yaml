@@ -31,6 +31,10 @@ analyzer:
     roe_min: 15
     net_profit_growth_min: 10
 
+backfill:
+  days: 60          # 首次运行时回填的历史天数
+  batch_size: 0     # 每次处理多少只股票（0=全部）
+
 report:
   top_n: 30
   output_dir: "reports"

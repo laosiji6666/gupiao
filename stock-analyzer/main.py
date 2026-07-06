@@ -43,11 +43,19 @@ def run_pipeline(config: dict, logger):
         if stock_count == 0:
             fetcher.fetch_stock_list(session)
 
-        # 2. 获取日线行情
+        # 2. 首次运行：补充历史日线数据（让 TA-Lib 指标有足够数据计算）
+        from src.models import DailyQuote
+        quote_count = session.query(DailyQuote).count()
+        if quote_count == 0:
+            logger.info("检测到无历史数据，开始回填...")
+            backfill_days = config.get("backfill", {}).get("days", 60)
+            fetcher.backfill_history(session, days=backfill_days)
+
+        # 3. 获取当日行情（覆盖最新数据）
         logger.info(f"拉取 {today} 行情数据...")
         fetcher.fetch_daily_quotes(session, today)
 
-        # 3. 获取基本面数据
+        # 4. 获取基本面数据
         logger.info("拉取基本面数据...")
         fetcher.fetch_fundamentals(session, today)
 

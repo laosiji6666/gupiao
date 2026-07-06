@@ -20,3 +20,6 @@ stock-analyzer/reports/
 *.swp
 *.swo
 *.whl
+stock-analyzer/dist/
+stock-analyzer/build/
+stock-analyzer/*.spec
